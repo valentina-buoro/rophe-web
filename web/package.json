@@ -9,6 +9,8 @@
   },
   "dependencies": {
     "@midnight-ntwrk/dapp-connector-api": "^3.0.0",
+    "@midnight-ntwrk/wallet": "^5.0.0",
+    "@midnight-ntwrk/wallet-sdk-hd": "^2.0.0",
     "axios": "^1.12.2",
     "lucide-react": "^0.544.0",
     "next": "15.5.4",
@@ -17,6 +19,7 @@
     "react-toastify": "^11.0.5",
     "semver": "^7.7.2",
     "sooner": "^1.1.4",
+    "web3": "^4.16.0",
     "zustand": "^5.0.8"
   },
   "devDependencies": {

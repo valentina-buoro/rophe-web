@@ -41,6 +41,7 @@ export const useWalletStore = create<WalletStore>((set, get) => ({
       }
 
       const api = window.midnight.mnLace
+      console.log(api)
       
       // Check if already enabled
       const isEnabled = await api.isEnabled()

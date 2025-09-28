@@ -1,6 +1,9 @@
 "use client";
 import { useState, useEffect } from "react";
 import { getMidnightProvider } from "../scripts/midnight-provider";
+import { WalletBuilder } from '@midnight-ntwrk/wallet';
+import { NetworkId } from '@midnight-ntwrk/zswap'
+import { generateRandomSeed } from '@midnight-ntwrk/wallet-sdk-hd';
 import { useWalletStore } from "@/lib/walletStore";
 import { contractService } from "@/lib/CONTRACT_SERVICE";
 import { CONTRACT_CONFIG } from "@/lib/CONTRACT_CONFIG";
@@ -10,7 +13,11 @@ import Navbar from "@/components/navbar";
 
 import { ToastContainer, toast } from 'react-toastify';
 
-export default function Home() {
+type Props = {
+  stateJson: string;  // your lastStateJson
+};
+
+export default function Home({stateJson}: Props) {
   const mockMoodHistory = [
     {
       date: "2024-09-26",
@@ -35,14 +42,46 @@ export default function Home() {
     },
   ];
   const [connected, setConnected] = useState(false);
+  const [loading, setLoading] = useState(false)
+
+let s: any = null;
+  try {
+    s = JSON.parse(stateJson);
+    if (s?.state) s = s.state; // handle { state: {...} }
+  } catch {
+    // keep s = null; show raw JSON below
+  }
+
+  const rows: Array<{ label: string; value?: string }> = [
+    { label: "Shield Address", value: s?.address },
+    { label: "Shield CPK", value: s?.coinPublicKey ?? s?.cpk ?? s?.coin_public_key },
+    { label: "Shield EPK", value: s?.encryptionPublicKey ?? s?.epk ?? s?.encryption_public_key },
+    { label: "Legacy Address", value: s?.addressLegacy },
+    { label: "Legacy CPK", value: s?.coinPublicKeyLegacy },
+    { label: "Legacy EPK", value: s?.encryptionPublicKeyLegacy },
+  ];
+
+
+  console.log(rows)
+
+
+function toHexString(buffer:any) {
+  return Array.from(buffer)
+    .map((b:any) => b.toString(16).padStart(2, '0'))
+    .join('');
+}
+
 
   const connectWallet = async () => {
     try {
+      setLoading(true)
       const provider = getMidnightProvider();
-      if (!provider)
+      if (!provider){
+        setLoading(false)
         throw new Error(
           "Midnight provider not injected. Open Lace (Midnight testnet profile) and reload."
         );
+      }
 
       // 🔴 old: await provider.enable(); window.dispatchEvent(new CustomEvent("midnight:connected"));
       // ✅ new: pass the API in the event detail
@@ -55,41 +94,16 @@ export default function Home() {
       window.dispatchEvent(
         new CustomEvent("midnight:connected", { detail: { api, provider } })
       );
+      setLoading(false)
+      console.log(api)
     } catch (err: any) {
+      setLoading(false)
       alert(err?.message || String(err));
       console.error("Wallet connection failed:", err);
     }
   };
 
-  const [contractState, setContractState] = useState(contractService.getState());
-  const [loading, setLoading] = useState(false);
-  const [inputValues, setInputValues] = useState<{[key: string]: string}>({});
-
-  const handleInputChange = (paramName: string, value: string) => {
-    setInputValues(prev => ({ ...prev, [paramName]: value }));
-  };
-
-  const executeFunction = async (functionName: string, params: string[]) => {
-    if (!connected) {
-      toast.error('Please connect your Midnight Lace wallet');
-      return;
-    }
-
-    setLoading(true);
-    try {
-      const args = params.map(param => inputValues[param]);
-      const result = await contractService.callFunction(functionName, args);
-      if (result.success) {
-        toast.success(result.message || `${functionName} executed successfully!`);
-        setContractState(contractService.getState());
-        setInputValues({}); // Clear inputs after successful execution
-      }
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Contract execution failed');
-    } finally {
-      setLoading(false);
-    }
-  };
+  ;
 
   return (
     <div className="bg-[#100C08] min-h-screen px-16 py-16">
@@ -105,7 +119,9 @@ export default function Home() {
         <SymptomScreen />
       </div>
 
-      <div className="grid grid-cols-2 gap-16 px-10  pt-1">
+      {
+       connected && (
+        <div className="grid grid-cols-2 gap-16 px-10  pt-1">
         <div>
           <div className="text-left pt-10  font-semibold">
             <p className="text-[#F8F8FF] text-lg">Recent Mood -last 7 days</p>
@@ -144,6 +160,8 @@ export default function Home() {
           <RecentMedication />
         </div>
       </div>
+       )
+      }
 
       {!connected && (
         <div className="fixed inset-0  flex items-center justify-center z-50 p-4 w-full bg-white/10 bg-opacity-0">
@@ -159,7 +177,7 @@ export default function Home() {
                   onClick={connectWallet}
                   className="px-4 py-3 rounded-lg bg-[#005AEE] text-[#F8F8FF] font-semibold  inset-shadow-sm  inset-shadow-[#031636]"
                 >
-                  {"Connect Midnight Lace Wallet"}
+                  {loading? 'Connecting...': "Connect Midnight Lace Wallet"}
                 </button>
               </div>
             </div>
