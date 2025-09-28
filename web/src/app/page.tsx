@@ -4,7 +4,7 @@ import { getMidnightProvider } from "../scripts/midnight-provider";
 import { useWalletStore } from "@/lib/walletStore";
 import { contractService } from "@/lib/CONTRACT_SERVICE";
 import { CONTRACT_CONFIG } from "@/lib/CONTRACT_CONFIG";
-import SymptomScreen from "./(symptom-tracker)/page";
+import SymptomScreen from "@/components/symptom-tracker";
 import RecentMedication from "@/components/recent-medication";
 import Navbar from "@/components/navbar";
 

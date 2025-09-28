@@ -2,6 +2,7 @@
 import Link from "next/link";
 import React, { useState, useEffect } from "react";
 import { X } from "lucide-react";
+import AddMedicationForm from "./add-medication";
 
 interface Medication {
   id: number;
@@ -42,6 +43,7 @@ const RecentMedication = () => {
   >({});
   const [showSideEffectModal, setShowSideEffectModal] = useState(false);
   const [showReportedSideEffects, setShowReportedSideEffects] = useState(false)
+  const [showAddMedicationModal, setShowAddMedicationModal] = useState(false);
 
   const [selectedMedication, setSelectedMedication] =
     useState<SelectedMedication | null>(null);
@@ -89,6 +91,9 @@ const RecentMedication = () => {
 
   const openReportedSideEffect =()=>{
     setShowReportedSideEffects(!showReportedSideEffects)
+  }
+  const addMedication =()=>{
+    setShowAddMedicationModal(!showAddMedicationModal)
   }
 
   const reportSideEffect = (medId: number, medName: string) => {
@@ -150,7 +155,7 @@ const RecentMedication = () => {
     <div>
       <div className="flex justify-between items-center pt-10  font-semibold">
         <p className="text-[#F8F8FF] text-lg">Recent Medications</p>
-        <Link href='/add-medication' className="underline text-[#F8F8FF]"> Add New Medication</Link>
+        <button onClick={() => setShowAddMedicationModal(true)} className="underline text-[#F8F8FF]"> Add New Medication</button>
       </div>
 
       {medications.map((med) => {
@@ -195,9 +200,19 @@ const RecentMedication = () => {
         </button>
       </div>
 
+       {/* Add Medication Modal */}
+       {showAddMedicationModal && (
+       
+          <div className="max-w-2xl">
+            
+          <AddMedicationForm setShowAddMedicationModal={setShowAddMedicationModal}/>
+          </div>
+    
+       )}
+
       {/* Side Effect Reporting Modal */}
       {showSideEffectModal && selectedMedication && (
-        <div className="fixed inset-0  flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0  flex items-center justify-center z-50 p-4 bg-white/10 bg-opacity-0">
           <div className="bg-white rounded-xl shadow-xl max-w-lg w-full max-h-[80vh] overflow-y-auto">
             <div className="bg-[#005AEE] text-white p-4 rounded-t-xl">
               <div className="flex items-center justify-between">
@@ -350,6 +365,7 @@ const RecentMedication = () => {
         </div>
       )}
 
+ {/* Reported Side Effect Reporting Modal */}
      {
         showReportedSideEffects && (
             <div>
