@@ -1,0 +1,184 @@
+pragma language_version >= 0.16 && <= 0.17;
+
+
+import CompactStandardLibrary;
+
+enum UserMood {
+    Happy,
+    Neutral,
+    Sad,
+    Anxious,
+    Energetic,
+    Tired
+}
+
+
+enum MedicationStatus {
+    Active,
+    Completed,
+    Discontinued
+}
+
+// Ledger state for the Medication Tracker
+export ledger owner_id: Uint<32>;
+export ledger medication_count: Uint<64>;
+export ledger mood_count: Uint<64>; // New ledger for mood count
+
+// Maps to store medication details, indexed by user ID and medication ID
+export ledger medication_names: Map<Uint<32>, Map<Uint<32>, Bytes<32>>>;
+export ledger dosages: Map<Uint<32>, Map<Uint<32>, Uint<64>>>;
+export ledger frequencies: Map<Uint<32>, Map<Uint<32>, Bytes<32>>>;
+export ledger side_effects: Map<Uint<32>, Map<Uint<32>, Bytes<64>>>;
+
+// Maps to store mood details, indexed by user ID and mood ID
+export ledger moods: Map<Uint<32>, Map<Uint<32>, UserMood>>; // Changed to UserMood enum
+export ledger intensities: Map<Uint<32>, Map<Uint<32>, Uint<64>>>;
+export ledger notes: Map<Uint<32>, Map<Uint<32>, Bytes<32>>>;
+
+
+// Constructor to initialize the contract owner
+constructor() {
+    owner_id = 0 as Uint<32>; // Placeholder, will be set on deployment
+    medication_count = 0;
+    mood_count = 0; // Initialize mood count
+}
+
+// Witness functions for private computations and validations
+witness validate_user(user_id: Uint<32>): [Bool];
+witness verify_medication_id(user_id: Uint<32>, medication_id: Uint<32>): [Bool];
+witness verify_mood_id(user_id: Uint<32>, mood_id: Uint<32>): [Bool]; // New witness for mood ID
+
+// Circuit to add a new medication entry
+export circuit add_medication(
+    user_id: Uint<32>,
+    medication_id: Uint<32>,
+    medication_name: Bytes<32>,
+    dosage: Uint<64>,
+    frequency: Bytes<32>,
+    side_effects: Bytes<64>
+): [] {
+    // Validate user and medication ID privately
+    assert(validate_user(disclose(user_id)), "Invalid user");
+    assert(!verify_medication_id(disclose(user_id), disclose(medication_id)), "Medication ID already exists for this user");
+
+    // Store medication details
+    medication_names.insert(disclose(user_id), medication_names.member(disclose(user_id)) ? medication_names.lookup(disclose(user_id)).insert(disclose(medication_id), disclose(medication_name)) : Map<Uint<32>, Bytes<32>>{disclose(medication_id) -> disclose(medication_name)});
+    dosages.insert(disclose(user_id), dosages.member(disclose(user_id)) ? dosages.lookup(disclose(user_id)).insert(disclose(medication_id), disclose(dosage)) : Map<Uint<32>, Uint<64>>{disclose(medication_id) -> disclose(dosage)});
+    frequencies.insert(disclose(user_id), frequencies.member(disclose(user_id)) ? frequencies.lookup(disclose(user_id)).insert(disclose(medication_id), disclose(frequency)) : Map<Uint<32>, Bytes<32>>{disclose(medication_id) -> disclose(frequency)});
+    side_effects.insert(disclose(user_id), side_effects.member(disclose(user_id)) ? side_effects.lookup(disclose(user_id)).insert(disclose(medication_id), disclose(side_effects)) : Map<Uint<32>, Bytes<64>>{disclose(medication_id) -> disclose(side_effects)});
+
+    medication_count = (medication_count + 1) as Uint<64>;
+}
+
+// Circuit to update an existing medication entry
+export circuit update_medication(
+    user_id: Uint<32>,
+    medication_id: Uint<32>,
+    medication_name: Bytes<32>,
+    dosage: Uint<64>,
+    frequency: Bytes<32>,
+    side_effects: Bytes<64>
+): [] {
+    // Validate user and medication ID privately
+    assert(validate_user(disclose(user_id)), "Invalid user");
+    assert(verify_medication_id(disclose(user_id), disclose(medication_id)), "Medication ID does not exist for this user");
+
+    // Update medication details
+    medication_names.insert(disclose(user_id), medication_names.lookup(disclose(user_id)).insert(disclose(medication_id), disclose(medication_name)));
+    dosages.insert(disclose(user_id), dosages.lookup(disclose(user_id)).insert(disclose(medication_id), disclose(dosage)));
+    frequencies.insert(disclose(user_id), frequencies.lookup(disclose(user_id)).insert(disclose(medication_id), disclose(frequency)));
+    side_effects.insert(disclose(user_id), side_effects.lookup(disclose(user_id)).insert(disclose(medication_id), disclose(side_effects)));
+}
+
+// Circuit to remove a medication entry
+export circuit remove_medication(
+    user_id: Uint<32>,
+    medication_id: Uint<32>
+): [] {
+    // Validate user and medication ID privately
+    assert(validate_user(disclose(user_id)), "Invalid user");
+    assert(verify_medication_id(disclose(user_id), disclose(medication_id)), "Medication ID does not exist for this user");
+
+    // Remove medication details
+    medication_names.insert(disclose(user_id), medication_names.lookup(disclose(user_id)).remove(disclose(medication_id)));
+    dosages.insert(disclose(user_id), dosages.lookup(disclose(user_id)).remove(disclose(medication_id)));
+    frequencies.insert(disclose(user_id), frequencies.lookup(disclose(user_id)).remove(disclose(medication_id)));
+    side_effects.insert(disclose(user_id), side_effects.lookup(disclose(user_id)).remove(disclose(medication_id)));
+
+    medication_count = (medication_count - 1) as Uint<64>;
+}
+
+// Circuit to view medication details (selective disclosure via witness)
+export circuit view_medication(
+    user_id: Uint<32>,
+    medication_id: Uint<32>
+): [] {
+    // Validate user and medication ID privately
+    assert(validate_user(disclose(user_id)), "Invalid user");
+    assert(verify_medication_id(disclose(user_id), disclose(medication_id)), "Medication ID does not exist for this user");
+
+    // The actual viewing of details would happen off-chain via witness functions
+    // and selective disclosure based on user's privacy settings.
+    // This circuit only confirms the existence and validity.
+}
+
+// Circuit to add a new mood entry
+export circuit add_mood(
+    user_id: Uint<32>,
+    mood_id: Uint<32>,
+    mood: UserMood,
+    intensity: Uint<64>,
+    note: Bytes<32>
+): [] {
+    // Validate user and mood ID privately
+    assert(validate_user(disclose(user_id)), "Invalid user");
+    assert(!verify_mood_id(disclose(user_id), disclose(mood_id)), "Mood ID already exists for this user");
+
+    // Store mood details
+    moods.insert(disclose(user_id), moods.member(disclose(user_id)) ? moods.lookup(disclose(user_id)).insert(disclose(mood_id), disclose(mood)) : Map<Uint<32>, UserMood>{disclose(mood_id) -> disclose(mood)});
+    intensities.insert(disclose(user_id), intensities.member(disclose(user_id)) ? intensities.lookup(disclose(user_id)).insert(disclose(mood_id), disclose(intensity)) : Map<Uint<32>, Uint<64>>{disclose(mood_id) -> disclose(intensity)});
+    notes.insert(disclose(user_id), notes.member(disclose(user_id)) ? notes.lookup(disclose(user_id)).insert(disclose(mood_id), disclose(note)) : Map<Uint<32>, Bytes<32>>{disclose(mood_id) -> disclose(note)});
+
+    mood_count = (mood_count + 1) as Uint<64>;
+}
+
+// Circuit to update an existing mood entry
+export circuit update_mood(
+    user_id: Uint<32>,
+    mood_id: Uint<32>,
+    mood: UserMood,
+    intensity: Uint<64>,
+    note: Bytes<32>
+): [] {
+    // Validate user and mood ID privately
+    assert(validate_user(disclose(user_id)), "Invalid user");
+    assert(verify_mood_id(disclose(user_id), disclose(mood_id)), "Mood ID does not exist for this user");
+
+    // Update mood details
+    moods.insert(disclose(user_id), moods.lookup(disclose(user_id)).insert(disclose(mood_id), disclose(mood)));
+    intensities.insert(disclose(user_id), intensities.lookup(disclose(user_id)).insert(disclose(mood_id), disclose(intensity)));
+    notes.insert(disclose(user_id), notes.lookup(disclose(user_id)).insert(disclose(mood_id), disclose(note)));
+}
+
+// Circuit to remove a mood entry
+export circuit remove_mood(
+    user_id: Uint<32>,
+    mood_id: Uint<32>
+): [] {
+    // Validate user and mood ID privately
+    assert(validate_user(disclose(user_id)), "Invalid user");
+    assert(verify_mood_id(disclose(user_id), disclose(mood_id)), "Mood ID does not exist for this user");
+
+    // Remove mood details
+    moods.insert(disclose(user_id), moods.lookup(disclose(user_id)).remove(disclose(mood_id)));
+    intensities.insert(disclose(user_id), intensities.lookup(disclose(user_id)).remove(disclose(mood_id)));
+    notes.insert(disclose(user_id), notes.lookup(disclose(user_id)).remove(disclose(mood_id)));
+
+    mood_count = (mood_count - 1) as Uint<64>;
+}
+
+// Circuit to transfer contract ownership
+export circuit transfer_ownership(new_owner: Uint<32>): [] {
+    assert(disclose(owner_id) == caller_id(), "Only current owner can transfer ownership");
+    owner_id = disclose(new_owner);
+}
